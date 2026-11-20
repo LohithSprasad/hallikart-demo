@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HalliKart: village group buying</title>
+<link href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2ec;--sf:#fff;--ink:#1c2b22;--mut:#5b6b60;--g:#1f5a3a;--y:#e0a100;--r:#b3402a;--ln:#cdd8cf;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#121a15;--sf:#1a251e;--ink:#e6efe8;--mut:#9fb0a4;--g:#5fc08a;--y:#f0b92a;--r:#ee866f;--ln:#2d3d33;color-scheme:dark}}
+*{box-sizing:inherit}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Mukta,system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:clamp(28px,5vw,44px);line-height:1.05;margin:0 0 6px;font-weight:800;letter-spacing:-.5px}
+h2{font-size:20px;margin:0 0 10px;font-weight:800}
+p.lead{color:var(--mut);margin:0 0 18px;max-width:62ch}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.tabs button{padding:8px 14px;border:1px solid var(--ln);background:var(--sf);color:var(--ink);border-radius:20px;font:inherit;cursor:pointer}
+.tabs button[aria-pressed=true]{background:var(--g);color:#fff;border-color:var(--g)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--y);outline-offset:2px}
+.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:16px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.box{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:16px;margin-bottom:16px}
+.ladder{position:relative;margin:30px 0 8px;height:22px;background:var(--bg);border-radius:11px;border:1px solid var(--ln)}
+.fill{height:100%;background:var(--g);border-radius:11px;transition:width .5s}
+.mark{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--y)}
+.mark span{position:absolute;top:-22px;left:-30px;width:62px;text-align:center;font-size:12px;color:var(--mut);white-space:nowrap}
+.big{font-size:38px;font-weight:800;line-height:1}
+.mut{color:var(--mut);font-size:14px}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 3px}
+input,select{width:100%;padding:10px;font:inherit;border:1px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--ink)}
+.row{display:flex;gap:8px}.row>*{flex:1}
+.btn{margin-top:12px;padding:10px 16px;border:0;border-radius:8px;background:var(--y);color:#1c2b22;font:600 16px Mukta,sans-serif;cursor:pointer}
+.btn.alt{background:transparent;border:1px solid var(--g);color:var(--g)}
+.chip{display:inline-block;padding:2px 10px;border-radius:12px;font-size:13px;background:var(--bg);border:1px solid var(--ln)}
+.chip.bad{color:var(--r);border-color:var(--r)}.chip.ok{color:var(--g);border-color:var(--g)}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:15px}
+td,th{padding:6px 8px;border-bottom:1px solid var(--ln);text-align:left;white-space:nowrap}
+.hint{background:var(--bg);border-left:4px solid var(--y);padding:8px 12px;margin-top:10px;font-size:15px;border-radius:4px}
+.range{position:relative;height:14px;background:var(--bg);border-radius:7px;margin:8px 0}
+.range i{position:absolute;top:0;bottom:0;background:var(--y);border-radius:7px}
+.range b{position:absolute;top:-3px;bottom:-3px;width:3px;background:var(--ink)}
+</style></head><body><main>
+<h1>HalliKart</h1>
+<p class="lead">Neighbours pool their own money into one order. The more the village commits, the lower the price for everyone. Try it: place an order, watch the price tier move, then close the round.</p>
+<div class="tabs" id="tabs" role="group" aria-label="Round"></div>
+<div class="grid"><section>
+ <div class="box"><h2 id="ptitle"></h2><div class="mut" id="psub"></div>
+  <div class="ladder" id="ladder"></div>
+  <div class="row" style="margin-top:14px"><div><div class="big" id="price"></div><div class="mut" id="pnote"></div></div>
+  <div><div class="big" id="vol"></div><div class="mut" id="vnote"></div></div></div>
+  <div class="hint" id="next"></div></div>
+ <div class="box"><h2>Orders (paid only)</h2><div class="scroll"><table id="otab"></table></div><p class="mut" id="flags"></p></div>
+ <div class="box" id="bidbox"><h2>Supplier bids</h2><p class="mut" id="bidnote"></p><div class="scroll"><table id="btab"></table></div>
+  <button class="btn alt" id="close">Close round and reveal bids</button><button class="btn alt" id="reset" style="margin-left:8px">Reset</button></div>
+</section><section>
+ <div class="box"><h2>Place an order</h2>
+  <label for="nm">Name</label><input id="nm" value="Lakshmi" maxlength="30">
+  <label for="ph">Phone</label><input id="ph" value="98450 11223" inputmode="tel" maxlength="14">
+  <label for="tx">Say or type your order (English, Hindi, Kannada words ok)</label>
+  <input id="tx" value="2 bags of DAP" maxlength="80">
+  <div class="hint" id="parsed"></div>
+  <button class="btn" id="pay">Commit with UPI (simulated)</button>
+  <p class="mut">You pay only for your own order. If the lowest tier is not reached, you are refunded automatically.</p></div>
+ <div class="box"><h2>What the village will buy next</h2><div class="mut" id="fcnote"></div>
+  <div class="range" id="frange"></div><div id="ftxt"></div>
+  <p class="mut">Estimate blends a seasonal prior with real commitments. Brands see this, so they can plan supply for the village.</p></div>
+</section></div>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const R={
+ dap:{name:'DAP fertiliser',unit:'50 kg bag',kw:['dap','khad','fertili','urvarak'],retail:1450,tiers:[[1,1380],[41,1320],[101,1270]],prior:70,
+  bids:[['AgriLink Distributors',3.9,[1370,1300,1240]],['Kisan Co-op Mart',4.4,[1375,1310,1255]],['Ravi Traders (village shop)',4.1,[1380,1325,1262]]]},
+ oil:{name:'Cooking oil',unit:'15 L tin',kw:['oil','tel','enne','tin'],retail:2250,tiers:[[1,2180],[31,2090],[81,2010]],prior:45,
+  bids:[['ShopStream (online)',3.7,[2170,2080,1985]],['Gowda Wholesale',4.2,[2175,2085,2005]],['Ravi Traders (village shop)',4.1,[2180,2095,2015]]]},
+ led:{name:'LED bulbs (9 W)',unit:'pack of 4',kw:['led','bulb','light','bijli'],retail:360,tiers:[[1,340],[51,310],[121,285]],prior:90,
+  bids:[['ShopStream (online)',3.7,[335,300,270]],['BrightHome Distributors',3.5,[338,305,280]],['Ravi Traders (village shop)',4.1,[340,312,288]]]}
+};
+const W={one:1,ek:1,ond:1,two:2,do:2,eradu:2,three:3,teen:3,mooru:3,four:4,char:4,nalku:4,five:5,paanch:5,aidu:5,six:6,che:6,aaru:6,seven:7,saat:7,eight:8,aath:8,nine:9,nau:9,ten:10,das:10};
+const CAP=12;let cur='dap',S={};
+function seed(){S={};for(const k in R)S[k]={orders:[],closed:false};
+ const base={dap:[['Ramesh','98450 10001',6],['Savitha','98450 10002',4],['Manjunath','98450 10003',8],['Geetha','98450 10004',3],['Kumar','98450 10005',5],['Sharada','98450 10006',2],['Basavaraj','98450 10007',10],['Nagamma','98450 10008',4]],
+ oil:[['Anita','98450 20001',3],['Prakash','98450 20002',2],['Hema','98450 20003',5]],led:[['Dev','98450 30001',6],['Rekha','98450 30002',4]]};
+ for(const k in base)base[k].forEach(([n,p,q])=>S[k].orders.push({n,p,q}))}
+function tierOf(k,v){let t=0;R[k].tiers.forEach((x,i)=>{if(v>=x[0])t=i});return t}
+function total(k){return S[k].orders.reduce((a,o)=>a+o.q,0)}
+function parse(t){const s=t.toLowerCase();let q=null;const m=s.match(/\d+/);if(m)q=+m[0];else for(const w in W)if(new RegExp('\\b'+w+'\\b').test(s)){q=W[w];break}
+ let p=null;for(const k in R)if(R[k].kw.some(w=>s.includes(w))){p=k;break}return{q,p}}
+function tabs(){$('tabs').innerHTML='';for(const k in R){const b=document.createElement('button');b.textContent=R[k].name;b.setAttribute('aria-pressed',k===cur);b.onclick=()=>{cur=k;draw()};$('tabs').append(b)}}
+function flags(k){const o=S[k].orders,T=total(k),by={},out=[];o.forEach(x=>{const id=x.p.replace(/\D/g,'');by[id]=(by[id]||0)+x.q});
+ for(const id in by){if(by[id]>CAP)out.push('Phone …'+id.slice(-4)+' holds '+by[id]+' units, above the cap of '+CAP);else if(T>30&&by[id]/T>.25)out.push('Phone …'+id.slice(-4)+' holds '+Math.round(100*by[id]/T)+'% of the round')}
+ const ph=Object.keys(by).length;if(ph<o.length)out.push('Same phone used for several orders, counted together against the cap');return out}
+function draw(){tabs();const r=R[cur],s=S[cur],T=total(cur),t=tierOf(cur,T),mx=r.tiers[2][0]*1.3;
+ $('ptitle').textContent=r.name+' · '+r.unit;$('psub').textContent='Round closes at the weekly shandy. Local shop is the pickup point.';
+ let h='<div class="fill" style="width:'+Math.min(100,T/mx*100)+'%"></div>';r.tiers.forEach((x,i)=>{if(i)h+='<div class="mark" style="left:'+(x[0]/mx*100)+'%"><span>'+x[0]+'+ units</span></div>'});$('ladder').innerHTML=h;
+ const p=r.tiers[t][1];$('price').textContent='₹'+p;$('pnote').textContent='ceiling price per unit now (retail ₹'+r.retail+', you save ₹'+(r.retail-p)+')';
+ $('vol').textContent=T;$('vnote').textContent='units committed and paid by '+s.orders.length+' households';
+ const nx=r.tiers[t+1];$('next').textContent=nx?'Another '+(nx[0]-T)+' units unlocks ₹'+nx[1]+' for everyone, including those who already paid.':'Best tier reached. Everyone pays the lowest ceiling price.';
+ $('otab').innerHTML='<tr><th>Name</th><th>Phone</th><th>Units</th></tr>'+s.orders.map(o=>'<tr><td>'+esc(o.n)+'</td><td>…'+esc(o.p.slice(-4))+'</td><td>'+o.q+'</td></tr>').join('');
+ const f=flags(cur);$('flags').innerHTML=f.length?f.map(x=>'<span class="chip bad">Review: '+esc(x)+'</span>').join(' '):'<span class="chip ok">No unusual patterns found</span>';
+ bids();forecast();preview()}
+function bids(){const r=R[cur],s=S[cur],t=tierOf(cur,total(cur));
+ if(!s.closed){$('bidnote').textContent='Bids are sealed. They open only when the round closes, so suppliers cannot copy each other.';$('btab').innerHTML='<tr><th>Supplier</th><th>Rating</th><th>Bid</th></tr>'+r.bids.map(b=>'<tr><td>'+esc(b[0])+'</td><td>'+b[1]+'</td><td>sealed</td></tr>').join('');$('close').disabled=false;return}
+ const q=r.bids.filter(b=>b[1]>=3.8).sort((a,b)=>a[2][t]-b[2][t]),w=q[0];
+ $('bidnote').innerHTML='Winner: <b>'+esc(w[0])+'</b> at ₹'+w[2][t]+' per unit, ₹'+(r.tiers[t][1]-w[2][t])+' below the ceiling. Suppliers rated under 3.8 are not eligible. Money is released after members check the goods.';
+ $('btab').innerHTML='<tr><th>Supplier</th><th>Rating</th><th>Bid at tier</th><th>Result</th></tr>'+r.bids.map(b=>'<tr><td>'+esc(b[0])+'</td><td>'+b[1]+'</td><td>₹'+b[2][t]+'</td><td>'+(b===w?'<span class="chip ok">Won</span>':b[1]<3.8?'<span class="chip bad">Not eligible</span>':'Lost')+'</td></tr>').join('');$('close').disabled=true}
+function forecast(){const r=R[cur],T=total(cur),pr=r.prior,obs=T/.55,post=(2*pr+obs)/3,sd=Math.max(6,pr*.35/Math.sqrt(1+T/pr)),lo=Math.max(0,post-sd*1.64),hi=post+sd*1.64,mx=Math.max(hi,pr)*1.15;
+ $('fcnote').textContent='Next 5 weeks, '+r.unit+', whole village (about 55% of households join a round).';
+ $('frange').innerHTML='<i style="left:'+lo/mx*100+'%;width:'+(hi-lo)/mx*100+'%"></i><b style="left:'+post/mx*100+'%"></b>';
+ $('ftxt').innerHTML='<b>'+Math.round(lo)+' to '+Math.round(hi)+' units</b> <span class="mut">(best guess '+Math.round(post)+'; seasonal prior '+pr+')</span>'}
+function preview(){const x=parse($('tx').value);if(!x.q||x.q<1)return $('parsed').textContent='I could not find a quantity. Try “2 bags of DAP”.';
+ if(!x.p)return $('parsed').textContent='I heard '+x.q+' but not the product. Say DAP, oil or LED.';
+ $('parsed').textContent='Understood: '+x.q+' × '+R[x.p].name+(x.p!==cur?' (this will go to its own round)':'')+'. You would pay ≤ ₹'+(x.q*R[x.p].tiers[tierOf(x.p,total(x.p)+x.q)][1])+'.'}
+$('tx').oninput=preview;
+$('pay').onclick=()=>{const x=parse($('tx').value),n=$('nm').value.trim(),p=$('ph').value.trim();
+ if(!n||p.replace(/\D/g,'').length<10)return $('parsed').textContent='Enter your name and a 10-digit phone number.';
+ if(!x.q||!x.p||x.q<1)return preview();if(S[x.p].closed)return $('parsed').textContent='That round has closed.';
+ const id=p.replace(/\D/g,''),have=S[x.p].orders.filter(o=>o.p.replace(/\D/g,'')===id).reduce((a,o)=>a+o.q,0),q=Math.min(x.q,CAP-have);
+ if(q<=0)return $('parsed').textContent='Cap reached: each person can take up to '+CAP+' units so stock is shared fairly.';
+ S[x.p].orders.push({n,p,q});cur=x.p;draw();$('parsed').textContent=q<x.q?'Paid for '+q+' units. The rest was above the fair-share cap.':'Paid ₹'+q*R[x.p].tiers[tierOf(x.p,total(x.p))][1]+' held in escrow. You will see your allocation on the board.'};
+$('close').onclick=()=>{S[cur].closed=true;draw()};$('reset').onclick=()=>{seed();draw()};
+seed();draw();
+</script></main></body></html>
